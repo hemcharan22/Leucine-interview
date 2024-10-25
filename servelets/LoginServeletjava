@@ -1,0 +1,43 @@
+package com.useraccess.servlet;
+
+@WebServlet("/LoginServlet")
+public class LoginServlet extends HttpServlet {
+    protected void doPost(HttpServletRequest request, HttpServletResponse response) 
+            throws ServletException, IOException {
+        String username = request.getParameter("username");
+        String password = request.getParameter("password");
+        
+        try (Connection conn = DatabaseUtil.getConnection()) {
+            String sql = "SELECT * FROM users WHERE username = ? AND password = ?";
+            try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                pstmt.setString(1, username);
+                pstmt.setString(2, password);
+                
+                ResultSet rs = pstmt.executeQuery();
+                if (rs.next()) {
+                    HttpSession session = request.getSession();
+                    session.setAttribute("userId", rs.getInt("id"));
+                    session.setAttribute("username", username);
+                    session.setAttribute("role", rs.getString("role"));
+                    
+                    switch (rs.getString("role")) {
+                        case "Employee":
+                            response.sendRedirect("requestAccess.jsp");
+                            break;
+                        case "Manager":
+                            response.sendRedirect("pendingRequests.jsp");
+                            break;
+                        case "Admin":
+                            response.sendRedirect("createSoftware.jsp");
+                            break;
+                    }
+                } else {
+                    request.setAttribute("error", "Invalid credentials");
+                    request.getRequestDispatcher("login.jsp").forward(request, response);
+                }
+            }
+        } catch (SQLException e) {
+            throw new ServletException("Database error", e);
+        }
+    }
+}
